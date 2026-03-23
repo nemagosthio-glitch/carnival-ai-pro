@@ -25,7 +25,7 @@ export default function App() {
   // للتطوير المحلي فقط، استخدم متغير البيئة REACT_APP_GEMINI_KEY
   const API_KEY = process.env.REACT_APP_GEMINI_KEY || 'YOUR_API_KEY_HERE';
 
-  const askGemini = async (prompt: string, targetKey: string) => {
+ const response = await fetch('/api/gemini', {
     // تحقق من وجود API Key
     if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
       setErrorMsg('❌ خطأ: لم يتم تعيين Gemini API Key. اقرأ التعليمات أدناه.');
