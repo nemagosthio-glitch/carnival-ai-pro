@@ -20,111 +20,52 @@ export default function App() {
     results: { titles: '', opening: '', script: '', game: '', decor: '' }
   });
 
-  // ⚠️ تحذير أمني: لا تضع API Key مباشرة في الكود!
-  // الحل الصحيح: استخدم Backend Server أو متغيرات البيئة
-  // للتطوير المحلي فقط، استخدم متغير البيئة REACT_APP_GEMINI_KEY
-  const API_KEY = process.env.REACT_APP_GEMINI_KEY || 'YOUR_API_KEY_HERE';
-
- const response = await fetch('/api/gemini', {
-    // تحقق من وجود API Key
-    if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
-      setErrorMsg('❌ خطأ: لم يتم تعيين Gemini API Key. اقرأ التعليمات أدناه.');
-      return;
-    }
-
+  /**
+   * 🔗 الربط الآمن مع Vercel Serverless Function
+   * هذا الكود يضمن عدم كشف الـ API Key في المتصفح
+   */
+  const askGemini = async (prompt: string, targetKey: string) => {
     setLoading(true);
     setErrorMsg('');
     
     try {
-      // الطريقة الصحيحة: استخدام Backend Server كـ Proxy
-      // بدلاً من استدعاء API مباشرة من المتصفح
-      
-      // إذا كان لديك backend، استخدم هذا:
-      // const response = await fetch('/api/gemini', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ prompt })
-      // });
+      // منادي المسار /api/gemini الذي يقوم بالاتصال بـ Gemini بأمان
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
 
-      // للتطوير السريع: استخدام CORS Proxy (غير آمن للإنتاج)
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            // إضافة headers إضافية قد تساعد في بعض الحالات
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }]
-            }],
-            // إضافة safety settings لتقليل الفلترة
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_UNSPECIFIED",
-                threshold: "BLOCK_NONE"
-              }
-            ]
-          })
-        }
-      );
-
-      // معالجة الأخطاء بشكل أفضل
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
-        
-        if (response.status === 403) {
-          setErrorMsg(`❌ خطأ 403: لا توجد صلاحيات. تحقق من API Key والـ Quota.`);
-        } else if (response.status === 429) {
-          setErrorMsg(`❌ خطأ 429: تم تجاوز حد الطلبات. حاول لاحقاً.`);
-        } else if (response.status === 400) {
-          setErrorMsg(`❌ خطأ 400: الطلب غير صحيح. ${errorMessage}`);
-        } else {
-          setErrorMsg(`❌ خطأ: ${errorMessage}`);
-        }
-        console.error('Gemini API Error:', errorData);
-        setLoading(false);
-        return;
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `فشل الاتصال بالسيرفر (HTTP ${response.status})`);
       }
 
       const resData = await response.json();
+      
+      // دعم كل أشكال الرد المتوقعة من السيرفر
+      const text = resData.text || resData.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!text) throw new Error('لم يصل رد صالح من الذكاء الاصطناعي');
 
-      // تحقق من وجود النتيجة
-      if (!resData.candidates || !resData.candidates[0]?.content?.parts?.[0]?.text) {
-        setErrorMsg('❌ خطأ: لم تحصل على رد من Gemini. حاول مرة أخرى.');
-        console.error('Unexpected response structure:', resData);
-        setLoading(false);
-        return;
-      }
-
-      const text = resData.candidates[0].content.parts[0].text;
       setData(prev => ({ 
         ...prev, 
         results: { ...prev.results, [targetKey]: text } 
       }));
-      setErrorMsg('');
-      
+
     } catch (e) {
-      // معالجة أخطاء الشبكة و CORS
-      if (e.message.includes('Failed to fetch')) {
-        setErrorMsg(
-          `❌ خطأ CORS: لا يمكن الوصول للـ API من المتصفح مباشرة.\\n` +
-          `الحل: استخدم Backend Server كـ Proxy.`
-        );
-      } else {
-        setErrorMsg(`❌ خطأ: ${e.message}`);
-      }
-      console.error('Request Error:', e);
+      setErrorMsg(`❌ خطأ: ${e.message}`);
+      console.error('Gemini Fetch Error:', e);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
-  // دالة تصدير الـ PDF التي تحافظ على التنسيق واللغة العربية
+  // دالة تصدير الـ PDF التي تحافظ على التنسيق واللغة العربية والجماليات
   const downloadPDF = () => {
     const element = document.getElementById('full-carnival-content');
+    if (!element) return;
+    
     const opt = {
       margin: 5,
       filename: `كرنفال_${data.name || 'خادم_جيمناي'}.pdf`,
@@ -138,48 +79,30 @@ export default function App() {
   return (
     <div dir="rtl" style={{ backgroundColor: '#fdf3e7', minHeight: '100vh', padding: '20px', fontFamily: 'Arial', textAlign: 'right' }}>
       
-      {/* رسالة الخطأ */}
+      {/* عرض الأخطاء بشكل احترافي */}
       {errorMsg && (
-        <div style={{
-          backgroundColor: '#f8d7da',
-          color: '#721c24',
-          padding: '15px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          border: '1px solid #f5c6cb',
-          whiteSpace: 'pre-wrap',
-          fontFamily: 'monospace',
-          fontSize: '12px'
-        }}>
+        <div style={{ backgroundColor: '#f8d7da', color: '#721c24', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #f5c6cb', fontWeight: 'bold' }}>
           {errorMsg}
         </div>
       )}
 
-      {/* مؤشر التحميل */}
+      {/* مؤشر التحميل بتصميم مريح */}
       {loading && (
-        <div style={{
-          backgroundColor: '#d1ecf1',
-          color: '#0c5460',
-          padding: '15px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          border: '1px solid #bee5eb',
-          textAlign: 'center',
-          fontWeight: 'bold'
-        }}>
-          ⏳ جاري الاتصال بـ Gemini... يرجى الانتظار
+        <div style={{ backgroundColor: '#d1ecf1', color: '#0c5460', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center', fontWeight: 'bold', border: '1px solid #bee5eb' }}>
+          ⏳ جاري استحضار الأفكار من Gemini... يرجى الانتظار
         </div>
       )}
 
-      {/* القسم القابل للطباعة */}
+      {/* القسم القابل للطباعة - الحفاظ على كل الجماليات */}
       <div id="full-carnival-content" style={{ padding: '10px' }}>
-        <header style={{ backgroundColor: '#ffcc5c', padding: '15px', borderRadius: '10px', textAlign: 'center', marginBottom: '20px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: 0 }}>🎡 Carnival Designer AI (النسخة الكاملة الاحترافية)</h2>
+        <header style={{ backgroundColor: '#ffcc5c', padding: '20px', borderRadius: '15px', textAlign: 'center', marginBottom: '25px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+          <h1 style={{ margin: 0, color: '#4a4a4a' }}>🎡 Carnival Designer AI</h1>
+          <p style={{ margin: '5px 0 0', color: '#6d6d6d', fontSize: '14px' }}>النسخة الاحترافية المتكاملة والمؤمنة</p>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
           
-          {/* أولاً: المدخلات الأساسية */}
+          {/* 1. المدخلات الأساسية */}
           <section style={cardStyle}>
             <h3 style={titleStyle}>📝 المدخلات الأساسية</h3>
             <input placeholder="اسم الكرنفال" style={inputStyle} onChange={(e) => setData({...data, name: e.target.value})} />
@@ -189,35 +112,23 @@ export default function App() {
                <option>ابتدائي صغير (6-9 سنين)</option>
                <option>ابتدائي كبير (10-12 سنة)</option>
             </select>
-            <button 
-              style={{...btnStyle, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer'}} 
-              disabled={loading}
-              onClick={() => askGemini(`بناءً على كرنفال "${data.name}" وهدفه "${data.goal}" لسن "${data.age}"، اقترح 5 أسماء كرياتيف وشعار، و9 عناوين لخيام تعليمية.`, 'titles')}
-            >
-              توليد الأفكار الأساسية ✨
-            </button>
+            <button style={btnStyle} disabled={loading} onClick={() => askGemini(`بناءً على كرنفال "${data.name}" وهدفه "${data.goal}" لسن "${data.age}"، اقترح 5 أسماء كرياتيف وشعار، و9 عناوين لخيام تعليمية.`, 'titles')}>توليد الأفكار الأساسية ✨</button>
             <div style={resStyle}>{data.results.titles}</div>
           </section>
 
-          {/* ثانياً: الخيمة الافتتاحية */}
+          {/* 2. الخيمة الافتتاحية */}
           <section style={cardStyle}>
             <h3 style={titleStyle}>⛺ الخيمة الافتتاحية</h3>
             <input placeholder="الموضوع" style={inputStyle} onChange={(e) => setData({...data, openTheme: e.target.value})} />
             <input placeholder="عدد الترانيم" type="number" style={inputStyle} onChange={(e) => setData({...data, hymnCount: +e.target.value})} />
-            <button 
-              style={{...btnStyle, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer'}} 
-              disabled={loading}
-              onClick={() => askGemini(`ألف 3 شعارات لافتتاحية كرنفال عن "${data.openTheme}" واقترح ${data.hymnCount} ترانيم مناسبة لسن "${data.age}".`, 'opening')}
-            >
-              توليد محتوى الافتتاح
-            </button>
+            <button style={btnStyle} disabled={loading} onClick={() => askGemini(`ألف 3 شعارات لافتتاحية كرنفال عن "${data.openTheme}" واقترح ${data.hymnCount} ترانيم مناسبة لسن "${data.age}".`, 'opening')}>توليد محتوى الافتتاح</button>
             <div style={resStyle}>{data.results.opening}</div>
           </section>
 
-          {/* ثالثاً: الخيمة التعليمية */}
+          {/* 3. الخيمة التعليمية (The Core) */}
           <section style={{ ...cardStyle, gridColumn: 'span 2' }}>
             <h3 style={titleStyle}>📖 الخيمة التعليمية (The Core)</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '15px' }}>
               <input placeholder="اسم الخيمة" style={inputStyle} onChange={(e) => setData({...data, tentName: e.target.value})} />
               <input placeholder="وقت الاسكتش" style={inputStyle} onChange={(e) => setData({...data, sketchTime: e.target.value})} />
               <select style={inputStyle} onChange={(e) => setData({...data, theaterType: e.target.value})}>
@@ -227,25 +138,19 @@ export default function App() {
                   <option>عرض تمثيلي</option><option>عرض مغنى</option>
               </select>
             </div>
-            <button 
-              style={{ ...btnStyle, backgroundColor: '#4db8ff', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }} 
-              disabled={loading}
-              onClick={() => askGemini(`اكتب Script مسرحي لسن "${data.age}" عن "${data.goal}"، النوع "${data.theaterType}"، في وقت "${data.sketchTime}" دقيقة.`, 'script')}
-            >
-              توليد الإسكتش والأنشطة 🎭
-            </button>
-            <div style={{ ...resStyle, minHeight: '150px' }}>{data.results.script}</div>
+            <button style={{ ...btnStyle, backgroundColor: '#4db8ff' }} disabled={loading} onClick={() => askGemini(`اكتب Script مسرحي لسن "${data.age}" عن "${data.goal}"، النوع "${data.theaterType}"، في وقت "${data.sketchTime}" دقيقة.`, 'script')}>توليد الإسكتش والأنشطة 🎭</button>
+            <div style={{ ...resStyle, minHeight: '180px' }}>{data.results.script}</div>
           </section>
 
-          {/* رابعاً: بارتيشن الألعاب */}
+          {/* 4. بارتيشن الألعاب (Fun Zone) */}
           <section style={cardStyle}>
-            <h3 style={titleStyle}>🎮 بارتيشن الألعاب (Fun Zone)</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <h3 style={titleStyle}>🎮 بارتيشن الألعاب</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
               <input placeholder="هدف اللعبة" style={inputStyle} onChange={(e) => setData({...data, gameObjective: e.target.value})} />
               <input placeholder="وقت اللعبة (دقيقة)" type="number" style={inputStyle} onChange={(e) => setData({...data, gameTime: e.target.value})} />
             </div>
-            <label style={labelStyle}>الخامات المتاحة:</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', fontSize: '12px', background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}>
+            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>الخامات المتاحة:</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px', background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '10px' }}>
               {['أقماع', 'كرات', 'بالونات', 'حبال', 'مواسير', 'حرة'].map(tool => (
                 <label key={tool}><input type="checkbox" value={tool} onChange={(e) => {
                   const val = e.target.value;
@@ -254,109 +159,63 @@ export default function App() {
                 }} /> {tool}</label>
               ))}
             </div>
-            <button 
-              style={{...btnStyle, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer'}} 
-              disabled={loading}
-              onClick={() => askGemini(`ابتكر لعبة لسن "${data.age}" لعدد 20 لاعب، وقتها "${data.gameTime}"، الهدف: "${data.gameObjective}"، الخامات: "${data.tools}".`, 'game')}
-            >
-              ابتكار اللعبة 🎲
-            </button>
+            <button style={btnStyle} disabled={loading} onClick={() => askGemini(`ابتكر لعبة لسن "${data.age}" لعدد 20 لاعب، وقتها "${data.gameTime}"، الهدف: "${data.gameObjective}"، الخامات: "${data.tools}".`, 'game')}>ابتكار اللعبة 🎲</button>
             <div style={resStyle}>{data.results.game}</div>
           </section>
 
-          {/* خامساً: الديكور والعمل الفني */}
+          {/* 5. الديكور والكرافت */}
           <section style={cardStyle}>
             <h3 style={titleStyle}>🎨 الديكور والكرافت</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
               <input placeholder="وقت الكرافت" type="number" style={inputStyle} onChange={(e) => setData({...data, craftTime: e.target.value})} />
               <input placeholder="عدد الأطفال" type="number" style={inputStyle} onChange={(e) => setData({...data, craftChildren: e.target.value})} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '5px', fontSize: '11px', background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '10px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>الخامات:</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px', background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '10px' }}>
               {['كرتون', 'ورق', 'خيش', 'فوم', 'إعادة تدوير', 'حرة'].map(tool => (
                 <label key={tool}><input type="checkbox" value={tool} onChange={(e) => {
                   const val = e.target.value;
-                  const current = data.craftTools ? data.craftTools.split(', ') : [];
+                  const current = data.craftTools ? data.craftTools.split(', ').filter(t => t !== '') : [];
                   setData({...data, craftTools: e.target.checked ? [...current, val].join(', ') : current.filter(t => t !== val).join(', ')});
                 }} /> {tool}</label>
               ))}
             </div>
-            <button 
-              style={{ ...btnStyle, backgroundColor: '#28a745', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }} 
-              disabled={loading}
-              onClick={() => {
-                const prompt = `ابتكر عمل فني لعدد "${data.craftChildren}" طفل في وقت "${data.craftTime}" دقيقة. الخامات: "${data.craftTools}". الهدف: "${data.goal}". اشرح الخطوات بوضوح.`;
-                askGemini(prompt, 'decor');
-              }}
-            >
-              توليد الديكور والكرافت 🖼️
-            </button>
+            <button style={{ ...btnStyle, backgroundColor: '#28a745' }} disabled={loading} onClick={() => askGemini(`ابتكر عمل فني لعدد "${data.craftChildren}" طفل في وقت "${data.craftTime}" دقيقة. الخامات: "${data.craftTools}". الهدف: "${data.goal}".`, 'decor')}>توليد الديكور والكرافت 🖼️</button>
             <div style={resStyle}>{data.results.decor}</div>
           </section>
 
         </div>
       </div>
 
-      {/* زرار التحميل النهائي */}
-      <div style={{ textAlign: 'center', marginTop: '30px', paddingBottom: '50px' }}>
+      {/* زرار التحميل النهائي بتصميم جذاب */}
+      <div style={{ textAlign: 'center', marginTop: '40px', paddingBottom: '60px' }}>
         <button 
           style={{ 
-            padding: '15px 40px', 
+            padding: '18px 50px', 
             backgroundColor: '#d9534f', 
             color: 'white', 
             border: 'none', 
             borderRadius: '50px', 
-            fontSize: '20px', 
+            fontSize: '22px', 
             fontWeight: 'bold', 
             cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(217, 83, 79, 0.4)'
+            boxShadow: '0 6px 15px rgba(217, 83, 79, 0.4)',
+            transition: 'transform 0.2s'
           }} 
+          onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
           onClick={downloadPDF}
         >
           تحميل ملف الكرنفال كاملاً PDF 📄
         </button>
-      </div>
-
-      {/* تعليمات الإعداد */}
-      <div style={{
-        backgroundColor: '#e7f3ff',
-        color: '#004085',
-        padding: '20px',
-        borderRadius: '8px',
-        marginTop: '30px',
-        border: '1px solid #b8daff',
-        fontSize: '13px',
-        lineHeight: '1.8'
-      }}>
-        <h4 style={{ marginTop: 0 }}>📋 تعليمات الإعداد والإصلاح:</h4>
-        <ol>
-          <li>
-            <strong>الحل الأفضل (الموصى به):</strong> أنشئ Backend Server (Node.js/Express أو Python/Flask) 
-            يعمل كـ Proxy بين المتصفح و Gemini API. هذا يحل مشاكل CORS ويحافظ على أمان API Key.
-          </li>
-          <li>
-            <strong>للتطوير السريع:</strong> استخدم متغيرات البيئة:
-            <br />
-            أنشئ ملف <code>.env</code> في جذر المشروع:
-            <br />
-            <code>REACT_APP_GEMINI_KEY=YOUR_ACTUAL_API_KEY</code>
-          </li>
-          <li>
-            <strong>تفعيل CORS في Gemini API:</strong> تأكد من أن API Key مفعل في Google Cloud Console 
-            وأن Gemini API مفعلة.
-          </li>
-          <li>
-            <strong>معالجة الأخطاء:</strong> الآن الكود يعرض رسائل خطأ واضحة تساعدك في التشخيص.
-          </li>
-        </ol>
       </div>
     </div>
   );
 }
 
 // Styles
-const cardStyle = { background: '#fff', padding: '20px', borderRadius: '15px', borderTop: '5px solid #ffcc5c', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' };
-const titleStyle = { margin: '0 0 15px 0', color: '#856404', fontSize: '18px' };
-const labelStyle = { fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' };
-const inputStyle = { width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ddd', boxSizing: 'border-box' };
-const btnStyle = { width: '100%', padding: '12px', backgroundColor: '#fd7e14', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '10px' };
-const resStyle = { marginTop: '10px', padding: '10px', background: '#f9f9f9', borderRadius: '8px', fontSize: '13px', whiteSpace: 'pre-wrap', border: '1px dashed #ccc' };
+const cardStyle = { background: '#fff', padding: '25px', borderRadius: '20px', borderTop: '6px solid #ffcc5c', boxShadow: '0 6px 12px rgba(0,0,0,0.05)' };
+const titleStyle = { margin: '0 0 20px 0', color: '#856404', fontSize: '20px', borderBottom: '2px solid #fff3cd', paddingBottom: '10px' };
+const inputStyle = { width: '100%', padding: '12px', marginBottom: '12px', borderRadius: '10px', border: '1px solid #ddd', boxSizing: 'border-box', fontSize: '14px' };
+const btnStyle = { width: '100%', padding: '14px', backgroundColor: '#fd7e14', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', transition: 'background 0.3s' };
+const resStyle = { marginTop: '15px', padding: '15px', background: '#fcfcfc', borderRadius: '10px', fontSize: '14px', whiteSpace: 'pre-wrap', border: '1px dashed #e0e0e0', color: '#444', lineHeight: '1.6' };
