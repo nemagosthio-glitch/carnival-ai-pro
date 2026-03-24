@@ -22,14 +22,14 @@ export default function App() {
 
   /**
    * 🔗 الربط الآمن مع Vercel Serverless Function
-   * هذا الكود يضمن عدم كشف الـ API Key في المتصفح
+   * تم إزالة أنواع TypeScript (: string) لضمان التوافق مع ملفات .jsx
    */
-  const askGemini = async (prompt: string, targetKey: string) => {
+  const askGemini = async (prompt, targetKey) => {
     setLoading(true);
     setErrorMsg('');
     
     try {
-      // منادي المسار /api/gemini الذي يقوم بالاتصال بـ Gemini بأمان
+      // منادي المسار /api/gemini (Serverless Function)
       const response = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@ export default function App() {
     }
   };
 
-  // دالة تصدير الـ PDF التي تحافظ على التنسيق واللغة العربية والجماليات
+  // دالة تصدير الـ PDF التي تحافظ على التنسيق واللغة العربية والجماليات الكاملة
   const downloadPDF = () => {
     const element = document.getElementById('full-carnival-content');
     if (!element) return;
@@ -93,11 +93,11 @@ export default function App() {
         </div>
       )}
 
-      {/* القسم القابل للطباعة - الحفاظ على كل الجماليات */}
+      {/* القسم القابل للطباعة - الحفاظ على كل الجماليات والخيارات الأصلية */}
       <div id="full-carnival-content" style={{ padding: '10px' }}>
         <header style={{ backgroundColor: '#ffcc5c', padding: '20px', borderRadius: '15px', textAlign: 'center', marginBottom: '25px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
           <h1 style={{ margin: 0, color: '#4a4a4a' }}>🎡 Carnival Designer AI</h1>
-          <p style={{ margin: '5px 0 0', color: '#6d6d6d', fontSize: '14px' }}>النسخة الاحترافية المتكاملة والمؤمنة</p>
+          <p style={{ margin: '5px 0 0', color: '#6d6d6d', fontSize: '14px' }}>النسخة الكاملة والمؤمنة (MASTERPIECE)</p>
         </header>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
@@ -149,7 +149,7 @@ export default function App() {
               <input placeholder="هدف اللعبة" style={inputStyle} onChange={(e) => setData({...data, gameObjective: e.target.value})} />
               <input placeholder="وقت اللعبة (دقيقة)" type="number" style={inputStyle} onChange={(e) => setData({...data, gameTime: e.target.value})} />
             </div>
-            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>الخامات المتاحة:</label>
+            <label style={labelStyle}>الخامات المتاحة:</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px', background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '10px' }}>
               {['أقماع', 'كرات', 'بالونات', 'حبال', 'مواسير', 'حرة'].map(tool => (
                 <label key={tool}><input type="checkbox" value={tool} onChange={(e) => {
@@ -170,7 +170,7 @@ export default function App() {
               <input placeholder="وقت الكرافت" type="number" style={inputStyle} onChange={(e) => setData({...data, craftTime: e.target.value})} />
               <input placeholder="عدد الأطفال" type="number" style={inputStyle} onChange={(e) => setData({...data, craftChildren: e.target.value})} />
             </div>
-            <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>الخامات:</label>
+            <label style={labelStyle}>الخامات المتاحة:</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', fontSize: '12px', background: '#fff', padding: '10px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '10px' }}>
               {['كرتون', 'ورق', 'خيش', 'فوم', 'إعادة تدوير', 'حرة'].map(tool => (
                 <label key={tool}><input type="checkbox" value={tool} onChange={(e) => {
@@ -216,6 +216,7 @@ export default function App() {
 // Styles
 const cardStyle = { background: '#fff', padding: '25px', borderRadius: '20px', borderTop: '6px solid #ffcc5c', boxShadow: '0 6px 12px rgba(0,0,0,0.05)' };
 const titleStyle = { margin: '0 0 20px 0', color: '#856404', fontSize: '20px', borderBottom: '2px solid #fff3cd', paddingBottom: '10px' };
+const labelStyle = { fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '5px' };
 const inputStyle = { width: '100%', padding: '12px', marginBottom: '12px', borderRadius: '10px', border: '1px solid #ddd', boxSizing: 'border-box', fontSize: '14px' };
 const btnStyle = { width: '100%', padding: '14px', backgroundColor: '#fd7e14', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', transition: 'background 0.3s' };
 const resStyle = { marginTop: '15px', padding: '15px', background: '#fcfcfc', borderRadius: '10px', fontSize: '14px', whiteSpace: 'pre-wrap', border: '1px dashed #e0e0e0', color: '#444', lineHeight: '1.6' };
