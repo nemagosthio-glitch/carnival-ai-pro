@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 // تأكد من إضافة مكتبة html2pdf.js للمشروع
-import html2pdf from 'html2pdf.js';
+//import html2pdf from 'html2pdf.js';
 
 export default function App() {
   const [loading, setLoading] = useState(false);
@@ -204,7 +204,7 @@ export default function App() {
           }} 
           onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
           onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          onClick={downloadPDF}
+        //onClick={downloadPDF}
         >
           تحميل ملف الكرنفال كاملاً PDF 📄
         </button>
