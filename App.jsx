@@ -220,3 +220,9 @@ const labelStyle = { fontSize: '12px', fontWeight: 'bold', display: 'block', mar
 const inputStyle = { width: '100%', padding: '12px', marginBottom: '12px', borderRadius: '10px', border: '1px solid #ddd', boxSizing: 'border-box', fontSize: '14px' };
 const btnStyle = { width: '100%', padding: '14px', backgroundColor: '#fd7e14', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginBottom: '15px', transition: 'background 0.3s' };
 const resStyle = { marginTop: '15px', padding: '15px', background: '#fcfcfc', borderRadius: '10px', fontSize: '14px', whiteSpace: 'pre-wrap', border: '1px dashed #e0e0e0', color: '#444', lineHeight: '1.6' };
+import { createRoot } from 'react-dom/client';
+
+// السطر ده هو اللي بيربط الكود بالصفحة
+const container = document.getElementById('root');
+const root = createRoot(container);
+root.render(<App />);
