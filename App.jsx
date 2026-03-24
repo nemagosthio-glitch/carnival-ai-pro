@@ -62,7 +62,7 @@ export default function App() {
   };
 
   // دالة تصدير الـ PDF التي تحافظ على التنسيق واللغة العربية والجماليات الكاملة
-  const downloadPDF = () => {
+ // const downloadPDF = () => {
     const element = document.getElementById('full-carnival-content');
     if (!element) return;
     
